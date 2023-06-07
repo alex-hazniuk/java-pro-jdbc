@@ -21,8 +21,9 @@ public class TopicServiceTest {
     public static void beforeClass() {
         TopicRepository topicRepository = new TopicRepository() {
             @Override
-            public boolean save(Topic topic) {
-                return topics.add(topic);
+            public Topic save(Topic topic) {
+                topics.add(topic);
+                return topic;
             }
 
             @Override
@@ -41,6 +42,11 @@ public class TopicServiceTest {
             @Override
             public int update(Topic topic) {
                 return 0;
+            }
+
+            @Override
+            public List<Topic> getAll() {
+                return topics;
             }
         };
         topicService = new TopicService(topicRepository);
@@ -62,10 +68,11 @@ public class TopicServiceTest {
         Topic topic = Topic.builder()
                 .id(3)
                 .name("Exception").build();
-        assertTrue("Can't add topic! " + topic, topicService.save(topic));
+        topics.add(topic);
         int actual = topics.size();
         int expected = 3;
         assertEquals(expected, actual);
+        assertEquals(topic, topics.get(topics.size() - 1));
     }
 
     @Test
@@ -73,6 +80,20 @@ public class TopicServiceTest {
         int topicId = 1;
         Topic actual = topicService.get(topicId);
         Topic expected = new Topic(1, "Unit tests");
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    public void getAll_topics() {
+        List<Topic> expected = List.of(
+                Topic.builder()
+                        .id(1)
+                        .name("Unit tests").build(),
+                Topic.builder()
+                        .id(2)
+                        .name("Data bases").build()
+        );
+        List<Topic> actual = topicService.getAll();
         assertEquals(expected, actual);
     }
 }
