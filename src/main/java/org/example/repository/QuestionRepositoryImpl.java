@@ -1,13 +1,11 @@
 package org.example.repository;
 
 import org.example.ConnectionSingleton;
+import org.example.exception.*;
 import org.example.model.Question;
 import org.example.repository.dao.QuestionRepository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,17 +46,31 @@ public class QuestionRepositoryImpl implements QuestionRepository {
                     WHERE topic_id = ?
             """;
 
+    private final static String GET_ALL_BY_TOPIC_NAME =
+            """
+                    SELECT question.id, text, topic_id
+                    FROM question
+                    LEFT OUTER JOIN topic
+                    ON topic_id = topic.id
+                    WHERE name = ?
+            """;
+
     private final Connection connection = ConnectionSingleton.getConnection();
 
     @Override
-    public boolean save(Question question) {
+    public Question save(Question question) {
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement(SAVE);
+            PreparedStatement preparedStatement = connection.prepareStatement(SAVE,
+                    Statement.RETURN_GENERATED_KEYS);
             preparedStatement.setString(1, question.getText());
             preparedStatement.setInt(2, question.getTopicId());
-            return preparedStatement.execute();
+            preparedStatement.execute();
+            ResultSet resultSet = preparedStatement.getGeneratedKeys();
+            resultSet.next();
+            question.setId(resultSet.getInt(1));
+            return question;
         } catch (SQLException e) {
-            throw new RuntimeException("Can't save data " + question, e);
+            throw new SaveDataException("Can't save data " + question, e);
         }
     }
 
@@ -71,7 +83,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
             resultSet.next();
             return getQuestion(resultSet);
         } catch (SQLException e) {
-            throw new RuntimeException("Can't get question by id: " + id, e);
+            throw new GetDataException("Can't get question by id: " + id, e);
         }
     }
 
@@ -82,20 +94,20 @@ public class QuestionRepositoryImpl implements QuestionRepository {
             preparedStatement.setInt(1, id);
             return preparedStatement.execute();
         } catch (SQLException e) {
-            throw new RuntimeException("Can't remove question by id: " + id, e);
+            throw new RemoveDataException("Can't remove question by id: " + id, e);
         }
     }
 
     @Override
-    public int update(Question question) {
+    public boolean update(Question question) {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(UPDATE);
             preparedStatement.setString(1, question.getText());
             preparedStatement.setInt(2, question.getTopicId());
             preparedStatement.setInt(3, question.getId());
-            return preparedStatement.executeUpdate();
+            return preparedStatement.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("Can't update data " + question, e);
+            throw new UpdateDataException("Can't update data " + question, e);
         }
     }
 
@@ -106,7 +118,7 @@ public class QuestionRepositoryImpl implements QuestionRepository {
             ResultSet resultSet = preparedStatement.executeQuery();
             return getQuestions(resultSet);
         } catch (SQLException e) {
-            throw new RuntimeException("Can't get all questions: ", e);
+            throw new GetAllDataException("Can't get all questions: ", e);
         }
     }
 
@@ -118,8 +130,21 @@ public class QuestionRepositoryImpl implements QuestionRepository {
             ResultSet resultSet = preparedStatement.executeQuery();
             return getQuestions(resultSet);
         } catch (SQLException e) {
-            throw new RuntimeException("Can't get all questions by topic where topic id: "
+            throw new GetAllDataByIdException("Can't get all questions by topic where topic id: "
                     + topicId, e);
+        }
+    }
+
+    @Override
+    public List<Question> getAllByTopicName(String topicName) {
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(GET_ALL_BY_TOPIC_NAME);
+            preparedStatement.setString(1, topicName);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return getQuestions(resultSet);
+        } catch (SQLException e) {
+            throw new GetAllDataByNameException("Can't get all questions by topic where topic name: "
+                    + topicName, e);
         }
     }
 

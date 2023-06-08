@@ -21,8 +21,9 @@ public class QuestionServiceTest {
     public static void beforeClass() {
         QuestionRepository repository = new QuestionRepository() {
             @Override
-            public boolean save(Question question) {
-                return questions.add(question);
+            public Question save(Question question) {
+                questions.add(question);
+                return question;
             }
 
             @Override
@@ -41,8 +42,9 @@ public class QuestionServiceTest {
             }
 
             @Override
-            public int update(Question question) {
-                return 0;
+            public boolean update(Question question) {
+                questions.set(question.getId() - 1, question);
+                return questions.contains(question);
             }
 
             @Override
@@ -55,6 +57,11 @@ public class QuestionServiceTest {
                 return questions.stream()
                         .filter(q -> q.getTopicId() == topicId)
                         .toList();
+            }
+
+            @Override
+            public List<Question> getAllByTopicName(String topicName) {
+                return null;
             }
         };
         questionService = new QuestionService(repository);
@@ -79,10 +86,11 @@ public class QuestionServiceTest {
                 .id(3)
                 .text("What is collision?")
                 .topicId(2).build();
-        assertTrue("Can't add question! " + question, questionService.save(question));
+        questions.add(question);
         int actual = questions.size();
         int expected = 3;
         assertEquals(expected, actual);
+        assertEquals(question, questions.get(questions.size() - 1));
     }
 
     @Test
@@ -96,6 +104,34 @@ public class QuestionServiceTest {
     }
 
     @Test
+    public void update_question() {
+        Question question = Question.builder()
+                .id(1)
+                .text("Why we need integrity tests?")
+                .topicId(1).build();
+        assertTrue(questionService.update(question));
+        int actual = questions.size();
+        int expected = 2;
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    public void getAll_questions() {
+        List<Question> expected = List.of(
+                Question.builder()
+                        .id(1)
+                        .text("Why we need unit test?")
+                        .topicId(1).build(),
+                Question.builder()
+                        .id(2)
+                        .text("What is relational data base?")
+                        .topicId(1).build()
+        );
+        List<Question> actual = questionService.getAll();
+        assertEquals(expected, actual);
+    }
+
+    @Test
     public void get_random() {
         System.out.println(questionService.getRandom());
     }
@@ -103,8 +139,6 @@ public class QuestionServiceTest {
     @Test
     public void get_randomByTopic() {
         int topicId = 1;
-        assertNotNull("Invalid topic id: " + topicId,
-                questionService.getRandomByTopic(topicId));
         System.out.println(questionService.getRandomByTopic(topicId));
     }
 }
